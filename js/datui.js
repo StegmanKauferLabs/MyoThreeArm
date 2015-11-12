@@ -18,6 +18,14 @@ var MiscControls = function(){
 var trainedGestures = []
 var last = -1
 
+onGesture = function(gestureIndex){
+	if(gestureIndex == last || gestureIndex == -1){
+		return;
+	}
+	last = gestureIndex;
+	animateTo(trainedGestures[gestureIndex])
+}
+
 var TrainingControls = function(){
 
 	this["train options"] = Object.keys(gestures)[0]
@@ -37,17 +45,11 @@ var TrainingControls = function(){
 	}
 
 	this["stream"] = function(){
-		onGesture = function(gestureIndex){
-			if(pos == last || pos == -1){
-				return;
-			}
-			last = pos;
-			animateTo(trainedGestures[gestureIndex])
-		}
+		stream()
 	}
 
 	this["stop stream"] = function(){
-		onGesture = function(gestureIndex){}
+		stop()
 	}
 }
 
