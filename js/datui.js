@@ -15,7 +15,7 @@ var MiscControls = function(){
 	this["opacity"] = 0.8
 }
 
-var trainedGestures = []
+var trainedGestureNames = []
 var last = -1
 
 onGesture = function(gestureIndex){
@@ -23,7 +23,7 @@ onGesture = function(gestureIndex){
 		return;
 	}
 	last = gestureIndex;
-	animateTo(trainedGestures[gestureIndex])
+	animateTo(gestures[trainedGestureNames[gestureIndex]])
 }
 
 var TrainingControls = function(){
@@ -38,9 +38,9 @@ var TrainingControls = function(){
 		if(modelName.trim().toLowerCase() == "other")
 			modelName = this["train name"]
 
-		trainedGestures.indexOf(modelName) == -1 && trainedGestures.push(modelName)
+		trainedGestureNames.indexOf(modelName) == -1 && trainedGestureNames.push(modelName)
 
-		train(trainedGestures.indexOf(modelName))
+		train(trainedGestureNames.indexOf(modelName))
 
 	}
 
