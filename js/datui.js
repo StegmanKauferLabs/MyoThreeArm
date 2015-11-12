@@ -15,22 +15,39 @@ var MiscControls = function(){
 	this["opacity"] = 0.8
 }
 
+var trainedGestures = []
+var last = -1
+
 var TrainingControls = function(){
 
-	this["train options"] = ""
+	this["train options"] = Object.keys(gestures)[0]
 
 	this["train name"] = ""
 
 	this["train"] = function(){
 		//train model with "train name"
+		var modelName = this["train options"]
+		if(modelName.trim().toLowerCase() == "other")
+			modelName = this["train name"]
+
+		trainedGestures.indexOf(modelName) == -1 && trainedGestures.push(modelName)
+
+		train(trainedGestures.indexOf(modelName))
+
 	}
 
 	this["stream"] = function(){
-		//stream
+		onGesture = function(gestureIndex){
+			if(pos == last || pos == -1){
+				return;
+			}
+			last = pos;
+			animateTo(trainedGestures[gestureIndex])
+		}
 	}
 
 	this["stop stream"] = function(){
-		//stop stream
+		onGesture = function(gestureIndex){}
 	}
 }
 
