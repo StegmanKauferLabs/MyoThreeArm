@@ -1,0 +1,376 @@
+
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>ThreeArm</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				background:#fff;
+				padding:0;
+				margin:0;
+				font-weight: bold;
+				overflow:hidden;
+			}
+		</style>
+		<script src="js/myo.js"></script>
+	</head>
+	<body>
+
+		<script src="js/three.min.js"></script>
+		<script src="js/lib.js"></script>
+		<script src="js/collisions.js"></script>
+		<script src="js/TrackballControls.js"></script>
+		<script src="js/Finger.js"></script>
+		<script src="js/Thumb.js"></script>
+		<script src="js/dat.min.js"></script>
+		<script src="js/datui.js"></script>
+		<script src="js/myoemg.js"></script>
+
+		<script>
+			var start = Date.now()
+			var container;
+
+			var camera, scene, renderer;
+
+			var mouseX = 0, mouseY = 0;
+
+			var windowHalfX = window.innerWidth / 2;
+			var windowHalfY = window.innerHeight / 2;
+
+			var lineMaterial, material, geometry, controls;
+
+			var webbing = true;
+
+			var maxLowerDigitAngle = Math.PI / 2 + Math.PI / 12
+			var lowerDigitMaxPercent = 0.7
+			var maxMiddleDigitAngle = Math.PI / 2
+			var middleDigitMinPercent = 0.2
+
+			var zVector = new THREE.Vector3(0, 0, 1)
+			var maxHandAngle = Math.PI / 2 - Math.PI / 8
+			var minHandAngle = -maxHandAngle
+			var maxArmRotation = Math.PI / 6
+
+			var thumbParts
+
+			
+
+			init();
+			animate();
+
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				container.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 10000 );
+				
+				camera.position.add(new THREE.Vector3(-50, 150, 0))
+
+
+				controls = new THREE.TrackballControls( camera );
+				controls.addEventListener( 'change', render );
+
+
+				scene = new THREE.Scene();
+				scene.fog = new THREE.Fog( 0xffffff, 1, 10000 );
+
+
+				// the indenting is intentional, to make the object hierarchy clearer - I promise I'm not a bad programmer
+
+				// code results in a top-down view of the left hand's palm
+				var handXOffset = 100;
+
+
+				armGroup = new THREE.Object3D()
+				armGroup.position.x = handXOffset / -1.25
+
+					forearmGroup = ballGroup()
+					
+
+						handGroup = ballGroup()
+						handGroup.position.x += handXOffset
+						
+
+							fingers = {
+								pointer: Finger("pointer"),
+								middle: Finger("middle"),
+								ring: Finger("ring"),
+								pinky: Finger("pinky"),
+							}
+
+							for(var i = 0; i < Object.keys(fingers).length; i++){
+
+								var fingerName = Object.keys(fingers)[i]
+
+								var finger = fingers[fingerName];
+								if(i > 0 && webbing){
+									var previousFingerName = Object.keys(fingers)[i - 1]
+
+									handGroup.add(lineTo(finger.position, fingers[previousFingerName].position))
+								}
+
+
+								handGroup.add(finger)
+								handGroup.add(lineTo(new THREE.Vector3(), finger.position))
+
+							}
+
+							thumbHandJoint = Thumb()
+
+
+							handGroup.add(thumbHandJoint)
+							handGroup.add(lineTo(new THREE.Vector3(), thumbHandJoint.position))
+							handGroup.add(lineTo(fingers["pointer"].position, thumbHandJoint.position))
+
+						forearmGroup.add(handGroup)
+						forearmGroup.add(lineTo(new THREE.Vector3(), handGroup.position))
+
+					armGroup.add(forearmGroup)
+
+				scene.add(armGroup)
+
+				collisionGroup = new THREE.Object3D()
+
+
+
+
+
+				scene.add(new THREE.AmbientLight( 0xdddddd ))
+
+
+				
+				
+				var cubeSize = 8
+				cubeGeometry = new THREE.BoxGeometry( cubeSize, cubeSize, cubeSize );
+				
+				var dTheta = 30
+				var dPhi = 30
+				var dRho = 20
+
+				var maxTheta = 360
+				var maxPhi = 180
+				var rho0 = 20
+				var maxRho = rho0 + 2 * dRho
+
+				
+				
+
+				for(var theta = 0; theta < maxTheta; theta+=dTheta)
+					for(var phi = 0; phi < maxPhi; phi+=dPhi)
+						for(var rho = rho0; rho < maxRho; rho+=dRho){
+
+							
+							var cube = new THREE.Mesh(cubeGeometry, blueMaterial)
+
+							cube.position.x += Math.sin(phi * Math.PI / 180) * Math.cos(theta * Math.PI / 180) * rho + maxRho
+							cube.position.y += Math.sin(phi * Math.PI / 180) * Math.sin(theta * Math.PI / 180) * rho
+							cube.position.z += Math.cos(phi * Math.PI / 180) * rho
+							// var wireframeHelper = new THREE.WireframeHelper(cube, 0x000000)
+							// wireframeHelper.ignore = true
+
+							// collisionGroup.add(wireframeHelper)
+							collisionGroup.add(cube)
+						}
+
+
+
+
+				// for(var i = 0; i < cubes; i++){
+				// 	var cubeMaterial = new THREE.MeshLambertMaterial( {color: blueColor} );
+				// 	var cube = new THREE.Mesh(cubeGeometry, cubeMaterial)
+
+				// 	cube.position.y += (2 * Math.random() - 1) * cubeDistance
+				// 	cube.position.x += (2 * Math.random()) * cubeDistance * 1.25
+				// 	cube.position.z += (2 * Math.random() - 1) * cubeDistance
+				// 	var wireframeHelper = new THREE.WireframeHelper(cube, 0x000000)
+				// 	wireframeHelper.ignore = true
+
+				// 	collisionGroup.add(wireframeHelper)
+				// 	collisionGroup.add(cube)	
+				// }
+
+				animateTo(gestures.open)
+				miscControls["opacity"] = 0
+				
+
+				scene.add(collisionGroup)
+
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setClearColor( 0xffffff );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.sortObjects = false;
+
+				container.appendChild( renderer.domElement );
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function onWindowResize() {
+
+				windowHalfX = window.innerWidth / 2;
+				windowHalfY = window.innerHeight / 2;
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				controls.handleResize();
+
+			}
+
+			function onDocumentMouseMove(event) {
+
+				mouseX = ( event.clientX - windowHalfX ) * 10;
+				mouseY = ( event.clientY - windowHalfY ) * 10;
+
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+				controls.update();
+
+			}
+
+			function render() {
+
+				var time = (Date.now() - start) * 0.001;
+
+				updateColors(0.0025)
+
+				var collisions = checkCollision(collisionGroup)
+				for(var i = 0; i < collisionGroup.children.length; i++){
+					var object = collisionGroup.children[i]
+					if(object.ignore)
+						continue
+					if(collisions.indexOf(i) == -1)
+						object.material = blueMaterial
+					else
+						object.material = redMaterial
+				}
+				
+				
+				
+				
+
+				camera.lookAt( scene.position );
+
+				renderer.render( scene, camera );
+
+			}
+
+
+			function fingerToComponents(fingerName){
+				var finger = fingers[fingerName]
+				return {
+					"lower": finger,
+					"middle": finger.middleDigit,
+					"upper": finger.upperDigit
+				}
+			}
+
+			function rotateFinger(fingerName, digit, rad){
+				//digit can be lower, middle, or upper
+
+				var finger = fingers[fingerName]
+				var parent = finger
+				var child
+
+
+				if(digit == "lower"){
+					child = finger
+					parent = finger.parent
+				}
+
+				else if(digit == "middle")
+					child = finger.middleDigit
+				else
+					child = finger.upperDigit
+
+
+				var childVector = child.position.clone()
+				var parentVector = parent.position.clone()
+
+
+
+				var rotationAxis = parentVector.cross(childVector).cross(childVector).normalize()
+
+				rotationAxis.multiplyScalar(Math.sign(zVector.clone().dot(rotationAxis)))
+
+				child.rotateOnAxis(rotationAxis, rad)
+
+				return rotationAxis
+
+			}
+
+			function curlHand(value){//value ranges from -1 to 1, with -1 representing the hand curled backwards, and 1 representing the hand curled forwards
+
+				var normalizedValue = (value + 1) / 2
+
+				handGroup.rotation.set(0, 0, 0, "XYZ")
+				var angle = (maxHandAngle - minHandAngle) * normalizedValue + minHandAngle
+				handGroup.rotateZ(angle)
+
+				rotationValues["hand"] = value
+				miscControls["hand"] = value
+			}
+
+			function rotateArm(value){
+				armGroup.rotation.x = value * maxArmRotation
+				rotationValues["arm"] = value
+				miscControls['arm rotation'] = value
+			}
+
+			function curlFinger(percent, fingerName){
+
+				rotationValues[fingerName] = percent
+
+				fingerControl[fingerName] = percent
+
+				if(fingerName == "thumb")
+					return curlThumb(percent)
+
+				var fingerSegments = fingerToComponents(fingerName)
+
+				for(var segmentName in fingerSegments){
+					var fingerSegment = fingerSegments[segmentName]
+
+					fingerSegment.rotation.set(0, 0, 0, "XYZ")
+
+				}
+
+				
+
+
+				var lowerDigitPercent = Math.min(percent, lowerDigitMaxPercent)
+				var lowerDigitAngle = Math.sin(lowerDigitPercent / lowerDigitMaxPercent * Math.PI / 2) * maxLowerDigitAngle
+
+				rotateFinger(fingerName, "lower", lowerDigitAngle)
+
+				if(percent >= middleDigitMinPercent){
+					var middleDigitAngle = Math.sin(
+						(percent - middleDigitMinPercent) / (1 - middleDigitMinPercent) * Math.PI / 2
+					) * maxMiddleDigitAngle
+
+					rotateFinger(fingerName, "middle", middleDigitAngle)
+				}
+
+			}
+
+		</script>
+
+	</body>
+</html>
