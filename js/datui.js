@@ -49,6 +49,7 @@ var TrainingControls = function(){
 	}
 
 	this["stop stream"] = function(){
+		last = -1
 		stop()
 	}
 }
